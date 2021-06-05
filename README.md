@@ -1,1 +1,1 @@
-# Chess-AI
+# chess
