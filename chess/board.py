@@ -1,14 +1,14 @@
 import pygame
-from pygame.display import set_palette
 from chess.constants import *
+from chess.bit_board import BitBoard
 
 
 class Board:
     def __init__(self):
         self.turn = WHITE
-        self.selected_x = None
-        self.selected_y = None
-        self.board = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+        self.selected_mask = None
+        self.selected_piece = None
+        self.bb = BitBoard()
         self.board_surface = pygame.Surface((TILE_SIZE * ROWS, TILE_SIZE * COLS))
         for i in range(ROWS):
             for j in range(COLS):
@@ -17,88 +17,119 @@ class Board:
                     DARK if (i + j) % 2 else LIGHT,
                     (i * TILE_SIZE, j * TILE_SIZE, TILE_SIZE, TILE_SIZE),
                 )
-        self.sprite_map = {
-            WHITE | PAWN: pygame.image.load("chess/sprites/white_pawn.png"),
-            WHITE | KNIGHT: pygame.image.load("chess/sprites/white_knight.png"),
-            WHITE | BISHOP: pygame.image.load("chess/sprites/white_bishop.png"),
-            WHITE | ROOK: pygame.image.load("chess/sprites/white_rook.png"),
-            WHITE | QUEEN: pygame.image.load("chess/sprites/white_queen.png"),
-            WHITE | KING: pygame.image.load("chess/sprites/white_king.png"),
-            BLACK | PAWN: pygame.image.load("chess/sprites/black_pawn.png"),
-            BLACK | KNIGHT: pygame.image.load("chess/sprites/black_knight.png"),
-            BLACK | BISHOP: pygame.image.load("chess/sprites/black_bishop.png"),
-            BLACK | ROOK: pygame.image.load("chess/sprites/black_rook.png"),
-            BLACK | QUEEN: pygame.image.load("chess/sprites/black_queen.png"),
-            BLACK | KING: pygame.image.load("chess/sprites/black_king.png"),
-        }
-        for piece, sprite in self.sprite_map.items():
+        self.sprite_map = {}
+        for piece, sprite_path in SPRITES.items():
             self.sprite_map[piece] = pygame.transform.scale(
-                sprite, (TILE_SIZE, TILE_SIZE)
+                pygame.image.load(sprite_path), (TILE_SIZE, TILE_SIZE)
             )
-        self.setup_board()
-
-    def setup_board(self, FEN=None):
-        if FEN is None:
-            FEN = INITIAL_POSITION
-        fen_rows = FEN.split("/")
-        fen_map = {
-            "P": WHITE | PAWN,
-            "N": WHITE | KNIGHT,
-            "B": WHITE | BISHOP,
-            "R": WHITE | ROOK,
-            "Q": WHITE | QUEEN,
-            "K": WHITE | KING,
-            "p": BLACK | PAWN,
-            "n": BLACK | KNIGHT,
-            "b": BLACK | BISHOP,
-            "r": BLACK | ROOK,
-            "q": BLACK | QUEEN,
-            "k": BLACK | KING,
-        }
-
-        for i in range(ROWS):
-            j = 0
-            for char in fen_rows[i]:
-                if char.isdigit():
-                    for _ in range(int(char)):
-                        self.board[i][j] = 0
-                        j += 1
-                else:
-                    self.board[i][j] = fen_map[char]
-                    j += 1
 
     def draw(self, display):
         display.blit(self.board_surface, OFFSET)
-        for i in range(ROWS):
-            for j in range(COLS):
-                if self.board[i][j] != 0:
-                    sprite = self.sprite_map[self.board[i][j]]
-                    if self.selected_y != i or self.selected_x != j:
-                        display.blit(
-                            sprite,
-                            (j * TILE_SIZE + OFFSET[0], i * TILE_SIZE + OFFSET[1]),
-                        )
+        for n in self.bb.scan(self.bb.pawn & self.bb.white):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[PAWN | WHITE],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.knight & self.bb.white):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[KNIGHT | WHITE],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.bishop & self.bb.white):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[BISHOP | WHITE],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.rook & self.bb.white):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[ROOK | WHITE],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.queen & self.bb.white):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[QUEEN | WHITE],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.king & self.bb.white):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[KING | WHITE],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.pawn & self.bb.black):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[PAWN | BLACK],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.knight & self.bb.black):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[KNIGHT | BLACK],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.bishop & self.bb.black):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[BISHOP | BLACK],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.rook & self.bb.black):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[ROOK | BLACK],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.queen & self.bb.black):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[QUEEN | BLACK],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+        for n in self.bb.scan(self.bb.king & self.bb.black):
+            x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
+            if mask != self.selected_mask:
+                display.blit(
+                    self.sprite_map[KING | BLACK],
+                    (x * TILE_SIZE + OFFSET[0], y * TILE_SIZE + OFFSET[1]),
+                )
+
     
     def draw_dragged(self, display):
-        if self.selected_x is None:
+        if self.selected_mask is None:
             return
-        sprite = self.sprite_map[self.board[self.selected_y][self.selected_x]]
+        sprite = self.sprite_map[self.selected_piece | self.bb.turn]
         display.blit(
             sprite,
             sprite.get_rect(center=pygame.mouse.get_pos()),
         )
 
     def select_piece(self, x, y):
-        if self.board[y][x] != 0 and self.board[y][x] & self.turn:
-            self.selected_x = x
-            self.selected_y = y
+        mask = 1 << ((7 - y) * ROWS + x)
+        if (self.bb.white & mask and self.bb.turn == WHITE) or (self.bb.black & mask and self.bb.turn == BLACK):
+            self.selected_mask = mask
+            self.selected_piece = self.bb.get_piece(mask)
 
     def unselect_piece(self, x, y):
-        if self.selected_x is None:
+        if self.selected_mask is None:
             return
-        if x != self.selected_x or y != self.selected_y:
-            self.board[y][x] = self.board[self.selected_y][self.selected_x]
-            self.board[self.selected_y][self.selected_x] = 0
-            self.turn = WHITE if self.turn == BLACK else BLACK
-        self.selected_x = None
-        self.selected_y = None
+        mask = 1 << ((7 - y) * ROWS + x)
+        if mask != self.selected_mask:
+            self.bb.move(self.selected_mask, mask)
+        self.selected_mask = None
