@@ -1,15 +1,15 @@
+import chess.bit_board_util as bbu
 from chess.constants import (
-    ROWS,
+    BISHOP,
     COLS,
+    KING,
+    KNIGHT,
+    PAWN,
+    QUEEN,
+    ROOK,
+    ROWS,
     TILES,
     WHITE,
-    BLACK,
-    PAWN,
-    KNIGHT,
-    BISHOP,
-    ROOK,
-    QUEEN,
-    KING,
 )
 
 Bitboard = int
@@ -51,7 +51,7 @@ BB_LIGHT_TILES = 0x55AA_55AA_55AA_55AA
 BB_DARK_TILES = 0xAA55_AA55_AA55_AA55
 
 
-class BitBoard:
+class GameState:
     def __init__(self):
         self.turn = WHITE
         self.occupied = BB_RANK_1 | BB_RANK_2 | BB_RANK_7 | BB_RANK_8
@@ -90,27 +90,22 @@ class BitBoard:
     def _update_legal_moves(self):
         self.legal_moves = set()
         ally_mask = self.white if self.turn == WHITE else self.black
-        for from_tile in self.scan(ally_mask):
+        for from_tile in bbu.scan(ally_mask):
             from_mask = BB_TILES[from_tile]
             piece = self.get_piece(from_mask)
-            if  piece == KNIGHT:
-                for to_tile in self.scan(self.knight_attacks[from_mask] & ~ally_mask):
+            if piece == KNIGHT:
+                for to_tile in bbu.scan(self.knight_attacks[from_mask] & ~ally_mask):
                     self.legal_moves.add((from_mask, BB_TILES[to_tile]))
             if piece == KING:
-                for to_tile in self.scan(self.king_attacks[from_mask] & ~ally_mask):
+                for to_tile in bbu.scan(self.king_attacks[from_mask] & ~ally_mask):
                     self.legal_moves.add((from_mask, BB_TILES[to_tile]))
-
-    def scan(self, bb):
-        while bb:
-            remainder = bb & -bb
-            yield remainder.bit_length() - 1
-            bb ^= remainder
 
     def move(self, from_mask, to_mask):
         if from_mask == to_mask:
             return
         if (
-            self.get_piece(from_mask) == KNIGHT or self.get_piece(from_mask) == KING
+            (self.get_piece(from_mask) == KNIGHT
+            or self.get_piece(from_mask) == KING)
             and (from_mask, to_mask) not in self.legal_moves
         ):
             return
@@ -166,24 +161,3 @@ class BitBoard:
             self.queen |= mask
         if piece == KING:
             self.king |= mask
-
-    def print(self, bb):
-        board = "{:064b}".format(bb)
-        for i in range(8):
-            print(
-                board[8 * i + 7]
-                + " "
-                + board[8 * i + 6]
-                + " "
-                + board[8 * i + 5]
-                + " "
-                + board[8 * i + 4]
-                + " "
-                + board[8 * i + 3]
-                + " "
-                + board[8 * i + 2]
-                + " "
-                + board[8 * i + 1]
-                + " "
-                + board[8 * i + 0]
-            )
