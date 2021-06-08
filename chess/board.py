@@ -1,8 +1,8 @@
 import pygame
 
 import chess.bit_board_util as bbu
-from chess.game_state import GameState
 from chess.constants import *
+from chess.game_state import GameState
 
 
 class Board:
@@ -25,8 +25,19 @@ class Board:
                 pygame.image.load(sprite_path), (TILE_SIZE, TILE_SIZE)
             )
 
+    def _get_active_tile(self):
+        position = pygame.mouse.get_pos()
+        return (
+            int(position[0] - OFFSET[0]) // TILE_SIZE,
+            int(position[1] - OFFSET[1]) // TILE_SIZE,
+        )
+
     def draw(self, display):
         display.blit(self.board_surface, OFFSET)
+        self.draw_pieces(display)
+        self.draw_dragged(display)
+
+    def draw_pieces(self, display):
         for n in bbu.scan(self.state.pawn & self.state.white):
             x, y, mask = n % ROWS, 7 - n // COLS, 1 << n
             if mask != self.selected_mask:
@@ -115,13 +126,25 @@ class Board:
     def draw_dragged(self, display):
         if self.selected_mask is None:
             return
-        sprite = self.sprite_map[self.selected_piece | self.state.turn]
-        display.blit(
-            sprite,
-            sprite.get_rect(center=pygame.mouse.get_pos()),
-        )
+        x, y = self._get_active_tile()
+        if x >= 0 and y >= 0 and x < COLS and y < ROWS:
+            pygame.draw.rect(
+                display,
+                RED,
+                (
+                    OFFSET[0] + x * TILE_SIZE,
+                    OFFSET[1] + y * TILE_SIZE,
+                    TILE_SIZE,
+                    TILE_SIZE,
+                ),
+                2,
+            )
 
-    def select_piece(self, x, y):
+        sprite = self.sprite_map[self.selected_piece | self.state.turn]
+        display.blit(sprite, sprite.get_rect(center=pygame.mouse.get_pos()))
+
+    def select_piece(self):
+        x, y = self._get_active_tile()
         mask = 1 << ((7 - y) * ROWS + x)
         if (self.state.white & mask and self.state.turn == WHITE) or (
             self.state.black & mask and self.state.turn == BLACK
@@ -129,7 +152,8 @@ class Board:
             self.selected_mask = mask
             self.selected_piece = self.state.get_piece(mask)
 
-    def unselect_piece(self, x, y):
+    def unselect_piece(self):
+        x, y = self._get_active_tile()
         if self.selected_mask is None:
             return
         mask = 1 << ((7 - y) * ROWS + x)
