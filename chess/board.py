@@ -130,6 +130,5 @@ class Board:
         if self.selected_mask is None:
             return
         mask = 1 << ((7 - y) * ROWS + x)
-        if mask != self.selected_mask:
-            self.bb.move(self.selected_mask, mask)
+        self.bb.move(self.selected_mask, mask)
         self.selected_mask = None

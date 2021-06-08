@@ -16,7 +16,7 @@ Bitboard = int
 BB_EMPTY = 0
 BB_ALL = 0xFFFF_FFFF_FFFF_FFFF
 # fmt: off
-BB_SQUARES = [
+BB_TILES = [
     BB_A1, BB_B1, BB_C1, BB_D1, BB_E1, BB_F1, BB_G1, BB_H1,
     BB_A2, BB_B2, BB_C2, BB_D2, BB_E2, BB_F2, BB_G2, BB_H2,
     BB_A3, BB_B3, BB_C3, BB_D3, BB_E3, BB_F3, BB_G3, BB_H3,
@@ -47,8 +47,8 @@ BB_BACKRANKS = BB_RANK_1 | BB_RANK_8
 BB_CORNERS = BB_A1 | BB_H1 | BB_A8 | BB_H8
 BB_CENTER = BB_D4 | BB_E4 | BB_D5 | BB_E5
 
-BB_LIGHT_SQUARES = 0x55AA_55AA_55AA_55AA
-BB_DARK_SQUARES = 0xAA55_AA55_AA55_AA55
+BB_LIGHT_TILES = 0x55AA_55AA_55AA_55AA
+BB_DARK_TILES = 0xAA55_AA55_AA55_AA55
 
 
 class BitBoard:
@@ -63,6 +63,42 @@ class BitBoard:
         self.rook = BB_A1 | BB_H1 | BB_A8 | BB_H8
         self.queen = BB_D1 | BB_D8
         self.king = BB_E1 | BB_E8
+        self.knight_attacks = {}
+        self.king_attacks = {}
+        self.legal_moves = set()
+
+        self._pregenerate_attacks()
+        self._update_legal_moves()
+
+    def _pregenerate_attacks(self):
+        def get_shift_mask(source, shifts):
+            attacks = BB_EMPTY
+            for shift in shifts:
+                target = source + shift
+                if 0 <= target < 64 and abs(source % COLS - target % COLS) <= 2:
+                    attacks |= BB_TILES[target]
+            return attacks
+
+        for i in range(TILES):
+            self.knight_attacks[BB_TILES[i]] = get_shift_mask(
+                i, [-6, -10, -15, -17, 6, 10, 15, 17]
+            )
+            self.king_attacks[BB_TILES[i]] = get_shift_mask(
+                i, [-9, -8, -7, -1, 1, 7, 8, 9]
+            )
+
+    def _update_legal_moves(self):
+        self.legal_moves = set()
+        ally_mask = self.white if self.turn == WHITE else self.black
+        for from_tile in self.scan(ally_mask):
+            from_mask = BB_TILES[from_tile]
+            piece = self.get_piece(from_mask)
+            if  piece == KNIGHT:
+                for to_tile in self.scan(self.knight_attacks[from_mask] & ~ally_mask):
+                    self.legal_moves.add((from_mask, BB_TILES[to_tile]))
+            if piece == KING:
+                for to_tile in self.scan(self.king_attacks[from_mask] & ~ally_mask):
+                    self.legal_moves.add((from_mask, BB_TILES[to_tile]))
 
     def scan(self, bb):
         while bb:
@@ -70,12 +106,20 @@ class BitBoard:
             yield remainder.bit_length() - 1
             bb ^= remainder
 
-    def move(self, old_mask, new_mask):
-        piece = self.get_piece(old_mask)
-        self._remove_piece(old_mask)
-        self._remove_piece(new_mask)
-        self._set_piece(new_mask, piece)
+    def move(self, from_mask, to_mask):
+        if from_mask == to_mask:
+            return
+        if (
+            self.get_piece(from_mask) == KNIGHT or self.get_piece(from_mask) == KING
+            and (from_mask, to_mask) not in self.legal_moves
+        ):
+            return
+        piece = self.get_piece(from_mask)
+        self._remove_piece(from_mask)
+        self._remove_piece(to_mask)
+        self._set_piece(to_mask, piece)
         self.turn = not self.turn
+        self._update_legal_moves()
 
     def get_piece(self, mask):
         if not self.occupied & mask:
