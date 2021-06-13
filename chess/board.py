@@ -7,7 +7,6 @@ from chess.game_state import GameState
 
 class Board:
     def __init__(self):
-        self.turn = WHITE
         self.selected_mask = None
         self.selected_piece = None
         self.state = GameState()

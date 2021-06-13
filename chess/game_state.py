@@ -50,6 +50,32 @@ BB_CENTER = BB_D4 | BB_E4 | BB_D5 | BB_E5
 BB_LIGHT_TILES = 0x55AA_55AA_55AA_55AA
 BB_DARK_TILES = 0xAA55_AA55_AA55_AA55
 
+WHITE_PAWN_ATTACKS = {}
+BLACK_PAWN_ATTACKS = {}
+KNIGHT_ATTACKS = {}
+KING_ATTACKS = {}
+
+def get_shift_mask(source, shifts):
+    attacks = BB_EMPTY
+    for shift in shifts:
+        target = source + shift
+        if 0 <= target < 64 and abs(source % COLS - target % COLS) <= 2:
+            attacks |= BB_TILES[target]
+    return attacks
+
+for i in range(TILES):
+    WHITE_PAWN_ATTACKS[BB_TILES[i]] = get_shift_mask(
+        i, [7, 9]
+    )
+    BLACK_PAWN_ATTACKS[BB_TILES[i]] = get_shift_mask(
+        i, [-7, -9]
+    )
+    KNIGHT_ATTACKS[BB_TILES[i]] = get_shift_mask(
+        i, [-6, -10, -15, -17, 6, 10, 15, 17]
+    )
+    KING_ATTACKS[BB_TILES[i]] = get_shift_mask(
+        i, [-9, -8, -7, -1, 1, 7, 8, 9]
+    )
 
 class GameState:
     def __init__(self):
@@ -63,51 +89,52 @@ class GameState:
         self.rook = BB_A1 | BB_H1 | BB_A8 | BB_H8
         self.queen = BB_D1 | BB_D8
         self.king = BB_E1 | BB_E8
+        self.white_pawn_attacks = {}
+        self.black_pawn_attacks = {}
         self.knight_attacks = {}
         self.king_attacks = {}
         self.legal_moves = set()
 
-        self._pregenerate_attacks()
         self._update_legal_moves()
-
-    def _pregenerate_attacks(self):
-        def get_shift_mask(source, shifts):
-            attacks = BB_EMPTY
-            for shift in shifts:
-                target = source + shift
-                if 0 <= target < 64 and abs(source % COLS - target % COLS) <= 2:
-                    attacks |= BB_TILES[target]
-            return attacks
-
-        for i in range(TILES):
-            self.knight_attacks[BB_TILES[i]] = get_shift_mask(
-                i, [-6, -10, -15, -17, 6, 10, 15, 17]
-            )
-            self.king_attacks[BB_TILES[i]] = get_shift_mask(
-                i, [-9, -8, -7, -1, 1, 7, 8, 9]
-            )
 
     def _update_legal_moves(self):
         self.legal_moves = set()
-        ally_mask = self.white if self.turn == WHITE else self.black
+        ally_mask = self.white if self.turn else self.black
         for from_tile in bbu.scan(ally_mask):
             from_mask = BB_TILES[from_tile]
             piece = self.get_piece(from_mask)
-            if piece == KNIGHT:
-                for to_tile in bbu.scan(self.knight_attacks[from_mask] & ~ally_mask):
+            if piece == PAWN:
+                if self.turn:
+                    single_push = from_mask << 8 & ~self.occupied
+                    if single_push:
+                        self.legal_moves.add((from_mask, single_push))
+                    if from_mask & BB_RANK_2:
+                        double_push = from_mask << 16 & ~self.occupied & ~(self.occupied << 8)
+                        if double_push:
+                            self.legal_moves.add((from_mask, double_push))
+                    for to_tile in bbu.scan(WHITE_PAWN_ATTACKS[from_mask] & self.black):
+                        self.legal_moves.add((from_mask, BB_TILES[to_tile]))
+                else:
+                    single_push = from_mask >> 8 & ~self.occupied
+                    if single_push:
+                        self.legal_moves.add((from_mask, single_push))
+                    if from_mask & BB_RANK_7:
+                        double_push = from_mask >> 16 & ~self.occupied & ~(self.occupied >> 8)
+                        if double_push:
+                            self.legal_moves.add((from_mask, double_push))
+                    for to_tile in bbu.scan(BLACK_PAWN_ATTACKS[from_mask] & self.white):
+                        self.legal_moves.add((from_mask, BB_TILES[to_tile]))
+            elif piece == KNIGHT:
+                for to_tile in bbu.scan(KNIGHT_ATTACKS[from_mask] & ~ally_mask):
                     self.legal_moves.add((from_mask, BB_TILES[to_tile]))
-            if piece == KING:
-                for to_tile in bbu.scan(self.king_attacks[from_mask] & ~ally_mask):
+            else:
+                for to_tile in bbu.scan(KING_ATTACKS[from_mask] & ~ally_mask):
                     self.legal_moves.add((from_mask, BB_TILES[to_tile]))
 
     def move(self, from_mask, to_mask):
         if from_mask == to_mask:
             return
-        if (
-            (self.get_piece(from_mask) == KNIGHT
-            or self.get_piece(from_mask) == KING)
-            and (from_mask, to_mask) not in self.legal_moves
-        ):
+        if (from_mask, to_mask) not in self.legal_moves:
             return
         piece = self.get_piece(from_mask)
         self._remove_piece(from_mask)
@@ -144,7 +171,7 @@ class GameState:
 
     def _set_piece(self, mask, piece):
         self.occupied |= mask
-        if self.turn == WHITE:
+        if self.turn:
             self.white |= mask
         else:
             self.black |= mask

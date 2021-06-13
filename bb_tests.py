@@ -77,6 +77,14 @@ def print_bb(bb):
                 + board[8 * i + 0]
             )
 
-for i in range(64):
-    print_bb(kingAttacks(i))
-    print()
+print_bb(BB_E4)
+print()
+print_bb(BB_E4 >> 8)
+print()
+print_bb(BB_E4 >> -8)
+print()
+
+# Pawn shift 1
+# A & ~B
+# Pawn shift 1
+# A & ~B & ~(B << 8)
