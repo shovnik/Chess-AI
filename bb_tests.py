@@ -29,62 +29,80 @@ BB_RANKS = [
 ] = [0xff << (8 * i) for i in range(8)]
 # fmt: on
 
-BB_BACKRANKS = BB_RANK_1 | BB_RANK_8
-BB_CORNERS = BB_A1 | BB_H1 | BB_A8 | BB_H8
-BB_CENTER = BB_D4 | BB_E4 | BB_D5 | BB_E5
+# A1 to H8
+BB_DIAGS = [
+    0x0000_0000_0000_0001,
+    0x0000_0000_0000_0102,
+    0x0000_0000_0001_0204,
+    0x0000_0000_0102_0408,
+    0x0000_0001_0204_0810,
+    0x0000_0102_0408_1020,
+    0x0001_0204_0810_2040,
+    0x0102_0408_1020_4080,
+    0x0204_0810_2040_8000,
+    0x0408_1020_4080_0000,
+    0x0810_2040_8000_0000,
+    0x1020_4080_0000_0000,
+    0x2040_8000_0000_0000,
+    0x4080_0000_0000_0000,
+    0x8000_0000_0000_0000,
+]
 
-BB_LIGHT_TILES = 0x55AA_55AA_55AA_55AA
-BB_DARK_TILES = 0xAA55_AA55_AA55_AA55
+# A8 to H1
+BB_ANTI_DIAGS = [
+    0x0000_0000_0000_0080,
+    0x0000_0000_0000_8040,
+    0x0000_0000_0080_4020,
+    0x0000_0000_8040_2010,
+    0x0000_0080_4020_1008,
+    0x0000_8040_2010_0804,
+    0x0080_4020_1008_0402,
+    0x8040_2010_0804_0201,
+    0x4020_1008_0402_0100,
+    0x2010_0804_0201_0000,
+    0x1008_0402_0100_0000,
+    0x0804_0201_0000_0000,
+    0x0402_0100_0000_0000,
+    0x0201_0000_0000_0000,
+    0x0100_0000_0000_0000,
+]
 
-knights = BB_H6
-print(BB_H6)
-print(BB_H8)
-
-def knightAttacks(n):
-   attacks = BB_EMPTY
-   for shift in [-6, -10, -15, -17, 6, 10, 15, 17]:
-       index = n + shift
-       if 0 <= index < 64 and abs(n%8 - index%8) <= 2:
-           attacks |= BB_TILES[index]
-   return attacks
-
-def kingAttacks(n):
-   attacks = BB_EMPTY
-   for shift in [-9, -8, -7, -1, 1, 7, 8, 9]:
-       index = n + shift
-       if 0 <= index < 64 and abs(n%8 - index%8) <= 2:
-           attacks |= BB_TILES[index]
-   return attacks
 
 def print_bb(bb):
-        board = "{:064b}".format(bb)
-        for i in range(8):
-            print(
-                board[8 * i + 7]
-                + " "
-                + board[8 * i + 6]
-                + " "
-                + board[8 * i + 5]
-                + " "
-                + board[8 * i + 4]
-                + " "
-                + board[8 * i + 3]
-                + " "
-                + board[8 * i + 2]
-                + " "
-                + board[8 * i + 1]
-                + " "
-                + board[8 * i + 0]
-            )
+    board = "{:064b}".format(bb)
+    for i in range(8):
+        print(
+            board[8 * i + 7]
+            + " "
+            + board[8 * i + 6]
+            + " "
+            + board[8 * i + 5]
+            + " "
+            + board[8 * i + 4]
+            + " "
+            + board[8 * i + 3]
+            + " "
+            + board[8 * i + 2]
+            + " "
+            + board[8 * i + 1]
+            + " "
+            + board[8 * i + 0]
+        )
+    print()
 
-print_bb(BB_E4)
-print()
-print_bb(BB_E4 >> 8)
-print()
-print_bb(BB_E4 >> -8)
-print()
+
+def reverse_horizontal(bb):
+    # Source: https://www.chessprogramming.org/Flipping_Mirroring_and_Rotating#MirrorHorizontally
+    bb = ((bb >> 1) & 0x5555_5555_5555_5555) | ((bb & 0x5555_5555_5555_5555) << 1)
+    bb = ((bb >> 2) & 0x3333_3333_3333_3333) | ((bb & 0x3333_3333_3333_3333) << 2)
+    bb = ((bb >> 4) & 0x0F0F_0F0F_0F0F_0F0F) | ((bb & 0x0F0F_0F0F_0F0F_0F0F) << 4)
+    return bb
+
+
+for diag in BB_ANTI_DIAGS:
+    print_bb(diag)
 
 # Pawn shift 1
 # A & ~B
-# Pawn shift 1
+# Pawn shift 2
 # A & ~B & ~(B << 8)

@@ -1,6 +1,6 @@
 import pygame
 
-import chess.bit_board_util as bbu
+import chess.bb_utils as bbu
 from chess.constants import *
 from chess.game_state import GameState
 
